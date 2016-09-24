@@ -184,116 +184,57 @@ Meteor.methods({
 Start of maps
  */
 
-
 if (Meteor.isClient) {
-  Template.map.onCreated(function() {
-    GoogleMaps.ready('map', function(map) {
-      google.maps.event.addListener(map.instance, 'click', function(event) {
-        var ln = localStorage.getItem("lastname");
-        var url = (window.location != window.parent.location)
-            ? document.referrer
-            : document.location;
-            var url = toString(url);
-       var lastSegment = url.split('/').pop();
-        //alert("the cors iframe bridge parameter is  "+lastSegment);
-        var myApp = new Framework7();
- 
-        var $$ = Dom7;
-        
-       myApp.confirm(
-      '<label>Event Title</label><br/><br/>'+
-       '<input type="text" id="eventtitle" value="" /> <br/><br/>'+
-      '<label>Event Time</label><br/><br/>'+
-       '<input type="time" id="eventtime" value="" /> <br/><br/>'+
-       '<label>Event Duration</label><br/><br/>'+
-       '<input type="number" id="eventduration" value="" /> <br/><br/>'+
-       '<label>Event Category</label><br/><br/>'+
-        '<select id="eventcategory" name="category">'+
-            '<option value="hackathon">Hackathon</option>'+
-              '<option value="birthday">Birthday</option>'+
-              '<option value="bar">Bar Mitzvah</option>'+
-            '</select><br/><br/>'+
-            '<label>Event Owner</label><br/><br/>'+
-            '<select id="eventowner" name="owner">'+
-            '<option value="3">Me</option>'+
-              '<option value="4">Other</option>'+
-            '</select>', 'Geo Canada Create Event',
-      function () {
-         var ec = $('#eventcategory').val();
-        var eo = $('#eventowner').val();
-        Markers.insert({ createdAt: new Date(),lat: event.latLng.lat(), lng: event.latLng.lng(), eventowner:eo, eventcategory: ec});
-      },
-      function () {
-       
-      }
-      );
-      });
+  var MAP_ZOOM = 15;
 
-      var markers = {};
 
-      Markers.find().observe({
-        added: function (document) {
-          var icon;
-              if(document.eventowner == '3'){
-                var icon = 'http://maps.google.com/mapfiles/kml/shapes/hospitals.png';
-              }
-              else{
-                var icon = 'http://maps.google.com/mapfiles/kml/shapes/snowflake_simple.png';
-              }
-          var marker = new google.maps.Marker({
-            draggable: true,
-            animation: google.maps.Animation.DROP,
-            position: new google.maps.LatLng(document.lat, document.lng),
-            map: map.instance,
-            id: document._id,
-            icon: icon
+  Template.first.onCreated(function() {
+    var self = this;
+
+    GoogleMaps.ready('first', function(firstmap) {
+      var firstmarker;
+
+      // Create and move the marker when latLng changes.
+      self.autorun(function() {
+        var latLng = Geolocation.latLng();
+        if (! latLng)
+          return;
+
+        // If the marker doesn't yet exist, create it.
+        if (! firstmarker) {
+          firstmarker = new google.maps.Marker({
+            position: new google.maps.LatLng(latLng.lat, latLng.lng),
+            map: firstmap.instance
           });
-
-          google.maps.event.addListener(marker, 'dragend', function(event) {
-            Markers.update(marker.id, { $set: { lat: event.latLng.lat(), lng: event.latLng.lng() }});
-          });
-          
-          var infoWindow = new google.maps.InfoWindow({
-                content: "Fancy html goes here"
-            });
-          
-            google.maps.event.addListener(marker, 'click', function () {
-                infoWindow.open(map.instance, marker);
-            });
-            
-          markers[document._id] = marker;
-        },
-        changed: function (newDocument, oldDocument) {
-          markers[newDocument._id].setPosition({ lat: newDocument.lat, lng: newDocument.lng });
-        },
-        removed: function (oldDocument) {
-          markers[oldDocument._id].setMap(null);
-          google.maps.event.clearInstanceListeners(markers[oldDocument._id]);
-          delete markers[oldDocument._id];
         }
+        // The marker already exists, so we'll just change its position.
+        else {
+          firstmarker.setPosition(latLng);
+        }
+
+        // Center and zoom the map view onto the current position.
+        //firstmap.instance.setCenter(firstmarker.getPosition());
+        firstmap.instance.setZoom(MAP_ZOOM);
       });
     });
   });
 
-if (Meteor.isClient) {
-  Meteor.startup(function() {
-    console.log('hello');
-    GoogleMaps.load({
-    key: 'AIzaSyD81kt-LoD3_Vqyqhd1yw9YlHq8J3SHpEg'
-    });
-  });
-}
-
-  Template.map.helpers({
-    mapOptions: function() {
-      latLng = Geolocation.latLng();
-      if (GoogleMaps.loaded()) {
+  Template.first.helpers({
+    geolocationError: function() {
+      var error = Geolocation.error();
+      return error && error.message;
+    },
+    firstOptions: function() {
+      var latLng = Geolocation.latLng();
+      // Initialize the map once we have the latLng.
+      if (GoogleMaps.loaded() && latLng) {
         return {
           center: new google.maps.LatLng(latLng.lat, latLng.lng),
-          zoom: 8
+          zoom: MAP_ZOOM
         };
       }
     }
   });
 }
+
 
